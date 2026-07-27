@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Import data · UPT NIA Lookup{% endblock %}
+{% block nav_admin %}active{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>Import member data</h1>
+  <p class="muted">
+    Upload the master Excel (.xlsx) file. This <strong>replaces</strong> the entire
+    current dataset. A failed import leaves the existing data untouched.
+  </p>
+  <form method="post" action="/admin/import" enctype="multipart/form-data" class="inline-form">
+    <input type="file" name="datafile" accept=".xlsx" required>
+    <button type="submit" class="btn btn-primary">Import &amp; replace</button>
+  </form>
+  <p class="muted small">Large files (150–200&nbsp;MB, 60,000+ rows) can take a while — please wait for the page to finish.</p>
+</div>
+
+<div class="card">
+  <h2>Current dataset</h2>
+  <table class="kv">
+    <tbody>
+      <tr><th>Records loaded</th><td>{{ info['member_count'] }}</td></tr>
+      <tr><th>Last import</th><td>{{ info['last_import_at'] or 'never' }}</td></tr>
+      <tr><th>Rows in last import</th><td>{{ info['last_import_rows'] or '—' }}</td></tr>
+    </tbody>
+  </table>
+  <p class="muted small">See <a href="/admin/logs">Logs</a> for the full import history.</p>
+</div>
+{% endblock %}

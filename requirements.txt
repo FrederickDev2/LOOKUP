@@ -1,0 +1,12 @@
+# UPT NIA Lookup — Python dependencies
+# Pinned to compatible ranges. Install into a venv (see README).
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+jinja2==3.1.5
+python-multipart==0.0.20      # required by FastAPI for file/form uploads
+itsdangerous==2.2.0           # required by Starlette SessionMiddleware
+bcrypt==4.2.1                 # password hashing
+openpyxl==3.1.5               # Excel (.xlsx) parsing (streaming import)
+pandas==2.2.3                 # bulk-lookup list parsing + CSV/Excel export
+python-dotenv==1.0.1          # load configuration from .env

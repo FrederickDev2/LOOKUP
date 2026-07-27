@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Bulk results · UPT NIA Lookup{% endblock %}
+{% block nav_bulk %}active{% endblock %}
+{% block body %}
+<div class="card">
+  <div class="result-head">
+    <h1>Bulk results</h1>
+    <div class="downloads">
+      <a class="btn" href="/bulk/download/{{ token }}/csv">Export CSV</a>
+      <a class="btn" href="/bulk/download/{{ token }}/xlsx">Export Excel</a>
+    </div>
+  </div>
+  <div class="stats">
+    <span class="stat"><strong>{{ total }}</strong> searched</span>
+    <span class="stat ok"><strong>{{ found }}</strong> found</span>
+    <span class="stat miss"><strong>{{ not_found }}</strong> not found</span>
+  </div>
+  {% if truncated %}
+  <div class="hint">
+    Showing the first {{ display_cap }} of {{ total }} rows on screen.
+    The exported file contains all {{ total }} rows.
+  </div>
+  {% endif %}
+
+  <div class="table-scroll">
+    <table class="grid">
+      <thead>
+        <tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="{{ 'row-miss' if row['STATUS'] == 'NOT FOUND' else '' }}">
+          {% for h in headers %}<td>{{ row[h] }}</td>{% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted small">Monthly salary is intentionally excluded from results and exports.</p>
+  <p><a href="/bulk">&larr; Run another bulk lookup</a></p>
+</div>
+{% endblock %}

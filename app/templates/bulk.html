@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Bulk lookup · UPT NIA Lookup{% endblock %}
+{% block nav_bulk %}active{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>Bulk lookup</h1>
+  <p class="muted">
+    Upload a CSV or Excel file containing a list of NIA numbers. You will pick
+    which column to use, then get a results table you can export.
+  </p>
+  <form method="post" action="/bulk/preview" enctype="multipart/form-data" class="inline-form">
+    <input type="file" name="listfile" accept=".csv,.xlsx" required>
+    <button type="submit" class="btn btn-primary">Upload &amp; preview</button>
+  </form>
+</div>
+
+{% if columns %}
+<div class="card">
+  <h2>Choose the NIA column</h2>
+  <p class="muted">Preview of <code>{{ original_name }}</code>. Select the column that holds the NIA numbers.</p>
+  <form method="post" action="/bulk/run">
+    <input type="hidden" name="token" value="{{ token }}">
+    <label for="column">NIA column</label>
+    <select id="column" name="column" required>
+      {% for c in columns %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">Run lookup</button>
+  </form>
+
+  <div class="table-scroll">
+    <table class="grid">
+      <thead>
+        <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in sample %}
+        <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted small">Showing the first {{ sample|length }} row(s) for preview only.</p>
+</div>
+{% endif %}
+{% endblock %}

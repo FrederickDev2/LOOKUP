@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Logs · UPT NIA Lookup{% endblock %}
+{% block nav_logs %}active{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>Query log</h1>
+  <p class="muted">Who searched, what normalized NIA number(s), and when. Results themselves are never stored.</p>
+  <div class="table-scroll">
+    <table class="grid">
+      <thead>
+        <tr><th>When (UTC)</th><th>Account</th><th>Type</th><th>Items</th><th>Searched (normalized)</th></tr>
+      </thead>
+      <tbody>
+        {% for q in query_logs %}
+        <tr>
+          <td class="small">{{ q['created_at'] }}</td>
+          <td>{{ q['username'] }}</td>
+          <td>{{ q['query_type'] }}</td>
+          <td>{{ q['item_count'] }}</td>
+          <td class="mono small">{{ q['query_value'] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="muted">No queries logged yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h1>Import log</h1>
+  <div class="table-scroll">
+    <table class="grid">
+      <thead>
+        <tr><th>When (UTC)</th><th>File</th><th>Rows</th><th>No NIA</th><th>By</th><th>Status</th><th>Message</th></tr>
+      </thead>
+      <tbody>
+        {% for i in import_logs %}
+        <tr class="{{ 'row-miss' if i['status'] != 'success' else '' }}">
+          <td class="small">{{ i['imported_at'] }}</td>
+          <td>{{ i['filename'] }}</td>
+          <td>{{ i['row_count'] }}</td>
+          <td>{{ i['skipped_count'] }}</td>
+          <td>{{ i['imported_by'] }}</td>
+          <td>{{ i['status'] }}</td>
+          <td class="small">{{ i['message'] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="muted">No imports yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

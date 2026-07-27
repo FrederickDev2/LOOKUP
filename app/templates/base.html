@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}UPT NIA Lookup{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">UPT</span>
+      <span class="brand-name">Member NIA Lookup</span>
+    </div>
+    {% if user %}
+    <nav class="nav">
+      <a href="/search" class="{% block nav_search %}{% endblock %}">Single lookup</a>
+      <a href="/bulk" class="{% block nav_bulk %}{% endblock %}">Bulk lookup</a>
+      {% if user['role'] == 'admin' %}
+      <a href="/admin" class="{% block nav_admin %}{% endblock %}">Import data</a>
+      <a href="/admin/users" class="{% block nav_users %}{% endblock %}">Users</a>
+      <a href="/admin/logs" class="{% block nav_logs %}{% endblock %}">Logs</a>
+      {% endif %}
+    </nav>
+    <div class="userbox">
+      <span class="who">{{ user['username'] }} <span class="role role-{{ user['role'] }}">{{ user['role'] }}</span></span>
+      <a class="logout" href="/logout">Log out</a>
+    </div>
+    {% endif %}
+  </header>
+
+  <main class="content">
+    {% if msg %}<div class="flash flash-ok">{{ msg }}</div>{% endif %}
+    {% if err %}<div class="flash flash-err">{{ err }}</div>{% endif %}
+    {% block body %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <span>UPT Member NIA Lookup · v{{ version }} · internal use only</span>
+    <span class="privacy">Handles sensitive PII — do not share this screen or exports outside authorised staff.</span>
+  </footer>
+</body>
+</html>

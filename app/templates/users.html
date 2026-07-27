@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Users · UPT NIA Lookup{% endblock %}
+{% block nav_users %}active{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>User accounts</h1>
+  <table class="grid">
+    <thead>
+      <tr><th>Username</th><th>Role</th><th>Status</th><th>Created</th><th>By</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for u in all_users %}
+      <tr class="{{ '' if u['is_active'] else 'row-disabled' }}">
+        <td>{{ u['username'] }}</td>
+        <td><span class="role role-{{ u['role'] }}">{{ u['role'] }}</span></td>
+        <td>{{ 'active' if u['is_active'] else 'disabled' }}</td>
+        <td class="small">{{ u['created_at'] }}</td>
+        <td class="small">{{ u['created_by'] or '—' }}</td>
+        <td class="actions">
+          <form method="post" action="/admin/users/{{ u['id'] }}/toggle" class="inline">
+            <button class="btn btn-sm" type="submit">
+              {{ 'Disable' if u['is_active'] else 'Enable' }}
+            </button>
+          </form>
+          <form method="post" action="/admin/users/{{ u['id'] }}/password" class="inline">
+            <input type="password" name="password" placeholder="new password" minlength="8" required>
+            <button class="btn btn-sm" type="submit">Set password</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card card-narrow">
+  <h2>Create a new account</h2>
+  <form method="post" action="/admin/users/create" autocomplete="off">
+    <label for="new-username">Username</label>
+    <input id="new-username" name="username" type="text" required>
+
+    <label for="new-password">Password <span class="muted small">(min 8 characters)</span></label>
+    <input id="new-password" name="password" type="password" minlength="8" required>
+
+    <label for="new-role">Role</label>
+    <select id="new-role" name="role" required>
+      <option value="user">user — can query only</option>
+      <option value="admin">admin — import, users, logs</option>
+    </select>
+
+    <button type="submit" class="btn btn-primary">Create account</button>
+  </form>
+</div>
+{% endblock %}

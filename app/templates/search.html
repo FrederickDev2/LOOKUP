@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Single lookup · UPT NIA Lookup{% endblock %}
+{% block nav_search %}active{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>Single member lookup</h1>
+  <p class="muted">Enter a Ghana Card / NIA number, with or without hyphens or spaces.</p>
+  <form method="post" action="/search" class="inline-form" autocomplete="off">
+    <input name="nia" type="text" value="{{ query or '' }}"
+           placeholder="e.g. GHA-001849879-4 or GHA0018498794"
+           spellcheck="false" autofocus>
+    <button type="submit" class="btn btn-primary">Look up</button>
+  </form>
+
+  {% if hint %}<div class="hint">⚠ {{ hint }}</div>{% endif %}
+</div>
+
+{% if normalized %}
+<div class="card">
+  {% if not_found %}
+    <div class="notfound">
+      <strong>Not found.</strong> No member record matches
+      <code>{{ normalized }}</code>.
+    </div>
+  {% elif result %}
+    <div class="result-head">
+      <h2>Match found</h2>
+      <span class="pill">Normalized: {{ normalized }}</span>
+    </div>
+    <table class="kv">
+      <tbody>
+      {% for label, value in result %}
+        <tr>
+          <th>{{ label }}</th>
+          <td>{{ value }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted small">Note: monthly salary is intentionally not shown.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

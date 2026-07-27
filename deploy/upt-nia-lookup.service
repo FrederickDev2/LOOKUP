@@ -1,0 +1,51 @@
+# systemd unit for the UPT NIA Lookup app (Ubuntu 24.04).
+#
+# Install:
+#   sudo cp deploy/upt-nia-lookup.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now upt-nia-lookup
+#
+# Adjust User/Group, WorkingDirectory and the venv path to match your install.
+# The app reads APP_HOST/APP_PORT from the .env file in WorkingDirectory, so it
+# binds only to the private interface you configure there — do NOT use 0.0.0.0.
+
+[Unit]
+Description=UPT Member NIA Lookup (FastAPI, internal use)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Dedicated non-login service account (create it once: see README).
+User=upt
+Group=upt
+
+# Absolute path to the app checkout.
+WorkingDirectory=/opt/upt-nia-lookup
+
+# Load configuration (APP_SECRET_KEY, APP_HOST, APP_PORT, etc.) from .env.
+EnvironmentFile=/opt/upt-nia-lookup/.env
+
+# Start uvicorn from the virtualenv. Host/port come from .env via app.config,
+# so they are NOT duplicated here (run.py enforces "no 0.0.0.0").
+ExecStart=/opt/upt-nia-lookup/.venv/bin/python /opt/upt-nia-lookup/run.py
+
+Restart=on-failure
+RestartSec=3
+
+# --- Hardening ---------------------------------------------------------------
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# The app only needs to write its data directory.
+ReadWritePaths=/opt/upt-nia-lookup/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=false
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
