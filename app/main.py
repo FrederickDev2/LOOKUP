@@ -21,12 +21,14 @@ from . import __version__, audit, bulk, users
 from .columns import display_fields, export_headers, is_salary
 from .config import settings
 from .database import init_db
-from .ingest import import_excel, last_import_info
+from .ingest import clear_all_members, import_excel, last_import_info
 from .lookup import bulk_lookup, single_lookup
 from .nia import format_hint, is_valid_nia, normalize_nia
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+# Thousands-separator filter for record counts, e.g. 1234 -> "1,234".
+templates.env.filters["comma"] = lambda n: f"{int(n or 0):,}"
 
 app = FastAPI(title="UPT NIA Lookup", version=__version__, docs_url=None, redoc_url=None)
 
@@ -367,9 +369,28 @@ async def admin_import(request: Request, datafile: UploadFile):
 
     audit.log_import(filename, result.row_count, result.skipped_count,
                      user["username"], "success",
-                     f"{result.row_count} rows imported, {result.skipped_count} without a NIA.")
+                     f"{result.row_count} rows merged, {result.skipped_count} without a NIA.")
     return RedirectResponse(
-        f"/admin?msg=Imported+{result.row_count}+rows+from+{filename}.", status_code=303
+        f"/admin?msg=Merged+{result.row_count}+rows+from+{filename}+into+the+dataset.",
+        status_code=303,
+    )
+
+
+@app.post("/admin/clear", response_class=HTMLResponse)
+def admin_clear(request: Request, confirm: str = Form("")):
+    user, redir = require_admin(request)
+    if redir:
+        return redir
+    if (confirm or "").strip() != "CLEAR":
+        return RedirectResponse(
+            "/admin?err=Type+CLEAR+(in+capitals)+to+confirm+deleting+all+data.",
+            status_code=303,
+        )
+    removed = clear_all_members()
+    audit.log_import("(clear all data)", 0, 0, user["username"], "cleared",
+                     f"{removed} member records deleted.")
+    return RedirectResponse(
+        f"/admin?msg=All+data+cleared+({removed}+records+deleted).", status_code=303
     )
 
 

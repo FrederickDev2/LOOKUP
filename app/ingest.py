@@ -2,9 +2,11 @@
 
 Uses openpyxl in read-only / streaming mode so that large files (150-200MB,
 60,000+ rows) can be imported without loading the whole workbook into memory.
-Rows are inserted in batches inside a single transaction that first clears the
-existing dataset — so a failed import leaves the previous data intact (atomic
-replace).
+
+Imports ADD & MERGE into the existing dataset: rows are upserted on the
+normalized NIA number, so a NIA already in the database is UPDATED with the
+newer values and new NIAs are inserted. The whole import runs inside a single
+transaction, so a failed import leaves the previous data completely intact.
 """
 from __future__ import annotations
 
@@ -21,6 +23,14 @@ from .database import get_conn, set_meta, utcnow_iso
 from .nia import normalize_nia
 
 BATCH_SIZE = 2000
+
+# Insert new members; if the normalized NIA already exists, update it in place.
+UPSERT_SQL = (
+    "INSERT INTO members (nia_normalized, nia_original, data_json) "
+    "VALUES (?, ?, ?) "
+    "ON CONFLICT(nia_normalized) DO UPDATE SET "
+    "nia_original=excluded.nia_original, data_json=excluded.data_json"
+)
 
 
 @dataclass
@@ -50,7 +60,7 @@ def _cell_to_str(value: object) -> str:
 
 
 def import_excel(path: str, imported_by: str) -> ImportResult:
-    """Parse the workbook at `path` and replace the members dataset.
+    """Parse the workbook at `path` and merge (upsert) it into the members table.
 
     Raises ValueError on a structural problem (missing NIA column, empty sheet).
     """
@@ -82,7 +92,6 @@ def import_excel(path: str, imported_by: str) -> ImportResult:
         with get_conn() as conn:
             try:
                 conn.execute("BEGIN")
-                conn.execute("DELETE FROM members")
 
                 batch: List[tuple] = []
                 for raw_row in rows:
@@ -103,27 +112,22 @@ def import_excel(path: str, imported_by: str) -> ImportResult:
 
                     nia_original = record.get(NIA_HEADER, "")
                     nia_norm = normalize_nia(nia_original)
+                    # Rows without a NIA are stored with a NULL key so they are
+                    # never merged together and never match a lookup.
                     if not nia_norm:
                         skipped += 1
-                        # Still store the row so it is not silently lost, but it
-                        # will never match a lookup (empty normalized key).
-                    batch.append((nia_norm, nia_original, json.dumps(record, ensure_ascii=False)))
+                        nia_key = None
+                    else:
+                        nia_key = nia_norm
+                    batch.append((nia_key, nia_original, json.dumps(record, ensure_ascii=False)))
                     row_count += 1
 
                     if len(batch) >= BATCH_SIZE:
-                        conn.executemany(
-                            "INSERT INTO members (nia_normalized, nia_original, data_json) "
-                            "VALUES (?, ?, ?)",
-                            batch,
-                        )
+                        conn.executemany(UPSERT_SQL, batch)
                         batch.clear()
 
                 if batch:
-                    conn.executemany(
-                        "INSERT INTO members (nia_normalized, nia_original, data_json) "
-                        "VALUES (?, ?, ?)",
-                        batch,
-                    )
+                    conn.executemany(UPSERT_SQL, batch)
                 conn.commit()
             except Exception:
                 conn.rollback()
@@ -137,6 +141,21 @@ def import_excel(path: str, imported_by: str) -> ImportResult:
     set_meta("last_import_at", utcnow_iso())
     set_meta("last_import_rows", str(row_count))
     return ImportResult(row_count=row_count, skipped_count=skipped, columns=headers)
+
+
+def clear_all_members() -> int:
+    """Delete every member record. Returns how many were removed.
+
+    User accounts and audit logs are untouched. This is irreversible (restore
+    from a database backup to recover).
+    """
+    with get_conn() as conn:
+        before = conn.execute("SELECT COUNT(*) AS c FROM members").fetchone()["c"]
+        conn.execute("DELETE FROM members")
+        conn.commit()
+    set_meta("last_import_at", "")
+    set_meta("last_import_rows", "0")
+    return before
 
 
 def member_count() -> int:
