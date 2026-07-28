@@ -19,7 +19,7 @@ from typing import List, Optional
 from openpyxl import load_workbook
 
 from .columns import NIA_HEADER, header_key
-from .database import get_conn, set_meta, utcnow_iso
+from .database import ensure_unique_nia_index, get_conn, set_meta, utcnow_iso
 from .nia import normalize_nia
 
 BATCH_SIZE = 2000
@@ -90,6 +90,10 @@ def import_excel(path: str, imported_by: str) -> ImportResult:
         skipped = 0
 
         with get_conn() as conn:
+            # Self-heal: make sure the UNIQUE index exists before upserting.
+            # (No-op on databases that already have it.)
+            ensure_unique_nia_index(conn)
+            conn.commit()
             try:
                 conn.execute("BEGIN")
 

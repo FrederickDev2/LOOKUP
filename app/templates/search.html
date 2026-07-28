@@ -16,29 +16,42 @@
 </div>
 
 {% if normalized %}
-<div class="card">
   {% if not_found %}
+  <div class="card">
     <div class="notfound">
       <strong>Not found.</strong> No member record matches
       <code>{{ normalized }}</code>.
     </div>
-  {% elif result %}
-    <div class="result-head">
-      <h2>Match found</h2>
-      <span class="pill">Normalized: {{ normalized }}</span>
+  </div>
+  {% elif member %}
+  <div class="card result-card">
+    <div class="member-header">
+      <div class="avatar">{{ member.initials }}</div>
+      <div class="member-id">
+        <div class="member-name">{{ member.full_name }}</div>
+        <div class="member-sub">
+          <span class="pill pill-accent">NIA {{ member.nia_display }}</span>
+          {% if member.gender %}<span class="pill">{{ member.gender }}</span>{% endif %}
+          {% if member.employer %}<span class="employer">{{ member.employer }}</span>{% endif %}
+        </div>
+      </div>
     </div>
-    <table class="kv">
-      <tbody>
-      {% for label, value in result %}
-        <tr>
-          <th>{{ label }}</th>
-          <td>{{ value }}</td>
-        </tr>
+
+    {% if member.fields %}
+    <dl class="detail-grid">
+      {% for label, value in member.fields %}
+      <div class="detail-item">
+        <dt>{{ label }}</dt>
+        <dd>{{ value }}</dd>
+      </div>
       {% endfor %}
-      </tbody>
-    </table>
-    <p class="muted small">Note: monthly salary is intentionally not shown.</p>
+    </dl>
+    {% else %}
+    <p class="muted">No additional details on file.</p>
+    {% endif %}
+
+    <p class="muted small">Blank fields and monthly salary are hidden.</p>
+  </div>
   {% endif %}
-</div>
 {% endif %}
 {% endblock %}

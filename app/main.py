@@ -18,7 +18,13 @@ from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import __version__, audit, bulk, users
-from .columns import display_fields, export_headers, is_salary
+from .columns import (
+    build_full_name,
+    detail_fields,
+    export_headers,
+    initials,
+    is_salary,
+)
 from .config import settings
 from .database import init_db
 from .ingest import clear_all_members, import_excel, last_import_info
@@ -167,15 +173,24 @@ def search_submit(request: Request, nia: str = Form("")):
     audit.log_single_query(user["username"], normalized)
 
     record = single_lookup(normalized)
+    member = None
     if record is None:
         not_found = True
     else:
-        result = display_fields(record)
+        full_name = build_full_name(record)
+        member = {
+            "full_name": full_name or "Member record",
+            "initials": initials(full_name),
+            "nia_display": (record.get("NIA NUMBER") or normalized),
+            "gender": (record.get("GENDER") or "").strip(),
+            "employer": (record.get("NAME OF EMPLOYER") or "").strip(),
+            "fields": detail_fields(record),
+        }
 
     return render(
         request, "search.html", user,
         query=raw, normalized=normalized, hint=hint,
-        result=result, not_found=not_found,
+        member=member, not_found=not_found,
     )
 
 

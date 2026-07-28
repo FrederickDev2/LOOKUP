@@ -93,6 +93,42 @@ def display_fields(data: Dict[str, str]) -> List[Tuple[str, str]]:
     return out
 
 
+# Name components combined into the result header (so they aren't repeated in the
+# detail grid), plus the NIA which is shown as a pill.
+NAME_PARTS = ["FIRST NAME", "OTHER NAMES", "LAST NAME"]
+HEADER_FIELDS = set(NAME_PARTS) | {NIA_HEADER}
+
+
+def build_full_name(record: Dict[str, str]) -> str:
+    """Join FIRST/OTHER/LAST name parts into a single display name."""
+    parts = [(record.get(p) or "").strip() for p in NAME_PARTS]
+    return " ".join(p for p in parts if p)
+
+
+def initials(full_name: str) -> str:
+    """Up to two uppercase initials from a full name (for the avatar)."""
+    words = [w for w in (full_name or "").split() if w]
+    if not words:
+        return "–"
+    if len(words) == 1:
+        return words[0][0].upper()
+    return (words[0][0] + words[-1][0]).upper()
+
+
+def detail_fields(data: Dict[str, str]) -> List[Tuple[str, str]]:
+    """Display fields for the result grid: canonical order, salary excluded,
+    name/NIA excluded (shown in the header), and BLANK values omitted.
+    """
+    out: List[Tuple[str, str]] = []
+    for label, value in display_fields(data):
+        if label in HEADER_FIELDS:
+            continue
+        if not (value or "").strip():
+            continue
+        out.append((label, value))
+    return out
+
+
 def export_headers(sample_keys: List[str]) -> List[str]:
     """Column order used for bulk exports, excluding salary."""
     headers: List[str] = []

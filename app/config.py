@@ -9,7 +9,11 @@ import os
 import secrets
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # python-dotenv is a convenience; fall back to real env vars.
+    def load_dotenv(*_args, **_kwargs):  # type: ignore
+        return False
 
 # Project root = the directory that contains this "app" package.
 BASE_DIR = Path(__file__).resolve().parent.parent

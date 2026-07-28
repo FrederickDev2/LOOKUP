@@ -89,31 +89,50 @@ def init_db() -> None:
     with get_conn() as conn:
         conn.executescript(SCHEMA)
         conn.commit()
-        _migrate_members_index(conn)
+        try:
+            removed = ensure_unique_nia_index(conn)
+            conn.commit()
+            if removed:
+                print(f"[migrate] Rebuilt a UNIQUE index on members.nia_normalized; "
+                      f"removed {removed} older duplicate-NIA row(s).")
+        except Exception as exc:  # noqa: BLE001
+            conn.rollback()
+            print(f"[WARN] Could not build the UNIQUE index on members.nia_normalized: {exc}")
 
 
-def _migrate_members_index(conn: sqlite3.Connection) -> None:
-    """Upgrade a pre-1.1 database that had a non-unique members index.
+def ensure_unique_nia_index(conn: sqlite3.Connection) -> int:
+    """Guarantee a UNIQUE index on members.nia_normalized.
 
-    Older installs stored blank NIAs as "" with a non-unique index. Convert
-    those to NULL and rebuild the index as UNIQUE so upsert imports work. Safe
-    no-op on fresh databases (which already have the UNIQUE index).
+    Fresh databases already have it (created by SCHEMA). Older ones had a
+    NON-unique index and may contain blank ("") keys and/or duplicate NIA rows
+    left by the previous replace-mode importer. To make upsert imports possible
+    we:
+      * convert blank keys to NULL (SQLite keeps NULLs distinct), and
+      * collapse duplicate NIAs, keeping the most recently inserted row (max id),
+    then rebuild the index as UNIQUE.
+
+    Idempotent: returns immediately if the index is already UNIQUE. Returns the
+    number of duplicate rows removed. The caller owns the transaction/commit.
     """
     row = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_members_nia'"
     ).fetchone()
-    if not row or "UNIQUE" in (row["sql"] or "").upper():
-        return
-    try:
-        conn.execute("UPDATE members SET nia_normalized=NULL WHERE nia_normalized=''")
+    if row and "UNIQUE" in (row["sql"] or "").upper():
+        return 0
+
+    conn.execute("UPDATE members SET nia_normalized=NULL WHERE nia_normalized=''")
+    cur = conn.execute(
+        "DELETE FROM members "
+        "WHERE nia_normalized IS NOT NULL AND id NOT IN ("
+        "  SELECT MAX(id) FROM members WHERE nia_normalized IS NOT NULL "
+        "  GROUP BY nia_normalized"
+        ")"
+    )
+    removed = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+    if row:
         conn.execute("DROP INDEX idx_members_nia")
-        conn.execute("CREATE UNIQUE INDEX idx_members_nia ON members (nia_normalized)")
-        conn.commit()
-    except sqlite3.IntegrityError:
-        # Duplicate NIA values already exist; leave the DB as-is and warn.
-        conn.rollback()
-        print("[WARN] Could not create a UNIQUE index on members.nia_normalized "
-              "because duplicate NIA values exist. Deduplicate before merge imports.")
+    conn.execute("CREATE UNIQUE INDEX idx_members_nia ON members (nia_normalized)")
+    return removed
 
 
 # --- meta helpers -----------------------------------------------------------

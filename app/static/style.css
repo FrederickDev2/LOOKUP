@@ -101,6 +101,36 @@ form.inline { display: inline-flex; gap: 0.35rem; align-items: center; margin: 0
 /* Result key/value table */
 .result-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .pill { background: #eef2f0; color: var(--muted); padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.85rem; }
+.pill-accent { background: var(--brand); color: #fff; font-weight: 600; letter-spacing: 0.02em; }
+
+/* Member result card */
+.result-card { animation: fadein 0.18s ease-out; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.member-header {
+  display: flex; align-items: center; gap: 1rem;
+  padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line);
+}
+.avatar {
+  flex: 0 0 auto; width: 58px; height: 58px; border-radius: 50%;
+  background: var(--brand); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.35rem; font-weight: 700; letter-spacing: 0.02em;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.15);
+}
+.member-name { font-size: 1.55rem; font-weight: 700; color: var(--brand); line-height: 1.15; }
+.member-sub { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; flex-wrap: wrap; }
+.member-sub .employer { color: var(--muted); font-size: 0.9rem; }
+
+.detail-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.4rem 1.5rem; margin: 0;
+}
+.detail-item { padding: 0.45rem 0; border-bottom: 1px solid var(--line); }
+.detail-item dt {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted); font-weight: 600; margin-bottom: 0.1rem;
+}
+.detail-item dd { margin: 0; font-size: 0.98rem; color: var(--ink); word-break: break-word; }
 table.kv { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
 table.kv th, table.kv td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.kv th { width: 34%; color: var(--muted); font-weight: 600; }
