@@ -135,6 +135,15 @@ table.kv { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
 table.kv th, table.kv td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.kv th { width: 34%; color: var(--muted); font-weight: 600; }
 
+/* Results search toolbar */
+.table-toolbar { display: flex; align-items: center; gap: 0.75rem; margin: 0.85rem 0 0.25rem; flex-wrap: wrap; }
+.table-search {
+  flex: 1; min-width: 220px; max-width: 440px;
+  padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-radius: 8px;
+  font-size: 0.95rem; background: #fff;
+}
+.table-search:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+
 /* Data grid */
 .table-scroll { overflow-x: auto; margin-top: 0.75rem; }
 table.grid { width: 100%; border-collapse: collapse; font-size: 0.9rem; }

@@ -17,13 +17,20 @@
   </div>
   {% if truncated %}
   <div class="hint">
-    Showing the first {{ display_cap }} of {{ total }} rows on screen.
-    The exported file contains all {{ total }} rows.
+    Showing the first {{ display_cap }} of {{ total }} rows on screen (search filters these
+    rows). The exported file contains all {{ total }} rows.
   </div>
   {% endif %}
 
+  <div class="table-toolbar">
+    <input type="search" id="table-search" class="table-search"
+           placeholder="Search results — any field (name, NIA, employer…)"
+           autocomplete="off" spellcheck="false" aria-label="Search results table">
+    <span id="filter-count" class="muted small"></span>
+  </div>
+
   <div class="table-scroll">
-    <table class="grid">
+    <table class="grid" id="results-table">
       <thead>
         <tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr>
       </thead>
@@ -36,7 +43,10 @@
       </tbody>
     </table>
   </div>
+  <p id="no-results" class="muted" hidden>No rows match your search.</p>
   <p class="muted small">Monthly salary is intentionally excluded from results and exports.</p>
   <p><a href="/bulk">&larr; Run another bulk lookup</a></p>
 </div>
+
+<script src="/static/table-filter.js"></script>
 {% endblock %}
