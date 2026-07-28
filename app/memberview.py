@@ -146,3 +146,29 @@ def build_member_view(record: Dict[str, str], normalized: str = "") -> dict:
         "panels": panels,
         "copy_text": copy_text,
     }
+
+
+def bulk_row(input_raw: str, normalized: str, record: Optional[Dict[str, str]]) -> dict:
+    """Compact, client-ready row for the bulk results table + detail panel."""
+    if not record:
+        return {
+            "input": input_raw, "nia": input_raw, "norm": normalized, "found": False,
+            "name": "", "initials": "", "ssnit": "", "employer": "",
+            "dob": "", "gender": "", "phone": "", "eerno": "", "sector": "",
+        }
+    name = build_full_name(record)
+    return {
+        "input": input_raw,
+        "nia": _g(record, "NIA NUMBER") or input_raw,
+        "norm": normalized,
+        "found": True,
+        "name": name or "Member record",
+        "initials": initials(name),
+        "ssnit": _g(record, "SSNIT SSNO"),
+        "employer": _g(record, "EERNO CURRENT NAME") or _g(record, "NAME OF EMPLOYER"),
+        "dob": _fmt_date(_g(record, "DOB")),
+        "gender": _gender_label(_g(record, "GENDER")),
+        "phone": _g(record, "TELEPHONE NUMBER"),
+        "eerno": _g(record, "EERNO CURRENT") or _g(record, "EERNO"),
+        "sector": _g(record, "TYPE OF SECTOR"),
+    }

@@ -1,45 +1,84 @@
 {% extends "base.html" %}
 {% block title %}Bulk lookup · UPT NIA Lookup{% endblock %}
 {% block nav_bulk %}active{% endblock %}
+{% block content_class %}content-wide{% endblock %}
 {% block body %}
-<div class="card">
-  <h1>Bulk lookup</h1>
-  <p class="muted">
-    Upload a CSV or Excel file containing a list of NIA numbers. You will pick
-    which column to use, then get a results table you can export.
-  </p>
-  <form method="post" action="/bulk/preview" enctype="multipart/form-data" class="inline-form">
-    <input type="file" name="listfile" accept=".csv,.xlsx" required>
-    <button type="submit" class="btn btn-primary">Upload &amp; preview</button>
-  </form>
+{% if err %}{# flash already rendered by base #}{% endif %}
+<div class="bulk-layout">
+
+  <!-- LEFT: input -->
+  <aside class="card bulk-input">
+    <form method="post" action="/bulk/run" enctype="multipart/form-data" id="bulk-form">
+      <label class="mini-cap" for="numbers">Paste Ghana Card numbers</label>
+      <textarea id="numbers" name="numbers" class="paste-box" spellcheck="false"
+                placeholder="GHA-000000000-0&#10;GHA-000000000-0&#10;one per line…">{{ numbers_raw or '' }}</textarea>
+      <div class="paste-count" id="paste-count"></div>
+      <button type="submit" class="lookup-btn wide">Run bulk lookup</button>
+
+      <div class="or-sep"><span>Or upload a file</span></div>
+
+      <label class="dropzone" id="dropzone" for="listfile">
+        <input type="file" id="listfile" name="listfile" accept=".csv,.xlsx" class="offscreen-file">
+        <span class="dz-title">Drop CSV or Excel</span>
+        <span class="dz-sub" id="dz-sub">Column of NIA numbers</span>
+      </label>
+    </form>
+  </aside>
+
+  <!-- MIDDLE: results -->
+  <section class="card bulk-main">
+    {% if has_results %}
+    <div class="bulk-head">
+      <h1>Bulk results</h1>
+      <span class="stat-chip"><b>{{ total }}</b> searched</span>
+      <span class="stat-chip ok"><b>{{ found }}</b> found</span>
+      <span class="stat-chip miss"><b>{{ not_found }}</b> not found</span>
+      <div class="bulk-exports">
+        <a class="mini-btn" href="/bulk/download/{{ token }}/csv">Export CSV</a>
+        <a class="mini-btn" href="/bulk/download/{{ token }}/xlsx">Export Excel</a>
+      </div>
+    </div>
+
+    <div class="bulk-toolbar">
+      <input type="search" id="bulk-filter" class="bulk-filter"
+             placeholder="Filter by name, NIA, SSNIT or employer" autocomplete="off" spellcheck="false">
+      <div class="seg" id="bulk-tabs">
+        <button type="button" class="seg-btn active" data-status="all">All</button>
+        <button type="button" class="seg-btn" data-status="found">Found</button>
+        <button type="button" class="seg-btn" data-status="notfound">Not found</button>
+      </div>
+    </div>
+
+    <div class="bulk-table-wrap">
+      <table class="bulk-table" id="bulk-table">
+        <thead>
+          <tr>
+            <th>NIA Number</th><th>Member</th><th>SSNIT no.</th><th>Employer</th>
+          </tr>
+        </thead>
+        <tbody id="bulk-tbody"></tbody>
+      </table>
+      <div class="bulk-empty" id="bulk-empty-filter" hidden>No rows match your filter.</div>
+    </div>
+    {% else %}
+    <div class="bulk-empty-main">
+      <div class="bem-title">No results yet</div>
+      <p class="bem-sub">Paste Ghana Card numbers (one per line) or upload a CSV/Excel file on the
+        left, then run the lookup.</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- RIGHT: detail preview -->
+  <aside class="card bulk-detail" id="bulk-detail">
+    {% if not has_results %}
+    <div class="detail-empty">Run a lookup, then select a row to preview the record.</div>
+    {% endif %}
+  </aside>
 </div>
 
-{% if columns %}
-<div class="card">
-  <h2>Choose the NIA column</h2>
-  <p class="muted">Preview of <code>{{ original_name }}</code>. Select the column that holds the NIA numbers.</p>
-  <form method="post" action="/bulk/run">
-    <input type="hidden" name="token" value="{{ token }}">
-    <label for="column">NIA column</label>
-    <select id="column" name="column" required>
-      {% for c in columns %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
-    </select>
-    <button type="submit" class="btn btn-primary">Run lookup</button>
-  </form>
-
-  <div class="table-scroll">
-    <table class="grid">
-      <thead>
-        <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
-      </thead>
-      <tbody>
-        {% for row in sample %}
-        <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <p class="muted small">Showing the first {{ sample|length }} row(s) for preview only.</p>
-</div>
+{% if has_results %}
+<script type="application/json" id="bulk-data">{{ data_json | safe }}</script>
 {% endif %}
+<script src="/static/bulk.js"></script>
 {% endblock %}

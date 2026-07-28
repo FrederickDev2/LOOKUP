@@ -30,7 +30,7 @@
     {% endif %}
   </header>
 
-  <main class="content">
+  <main class="content {% block content_class %}{% endblock %}">
     {% if msg %}<div class="flash flash-ok">{{ msg }}</div>{% endif %}
     {% if err %}<div class="flash flash-err">{{ err }}</div>{% endif %}
     {% block body %}{% endblock %}

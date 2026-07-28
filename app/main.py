@@ -12,8 +12,10 @@ from typing import List, Optional
 
 import csv
 import io
+import json
+import re
 
-from fastapi import FastAPI, Form, Request, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -22,7 +24,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from . import __version__, audit, bulk, users
 from .columns import display_fields, export_headers, is_salary
-from .memberview import build_member_view
+from .memberview import build_member_view, bulk_row
 from .config import settings
 from .database import init_db
 from .ingest import clear_all_members, import_excel, last_import_info
@@ -139,11 +141,37 @@ def logout(request: Request):
 
 # --- Single lookup ----------------------------------------------------------
 
+def _search_result(request: Request, user, raw: str):
+    raw = (raw or "").strip()
+    normalized = normalize_nia(raw)
+
+    if not normalized:
+        return render(request, "search.html", user, query=raw,
+                      hint="Please enter a Ghana Card / NIA number.")
+
+    hint = None if is_valid_nia(normalized) else format_hint()
+
+    # Log the query (normalized value only — never the result).
+    audit.log_single_query(user["username"], normalized)
+
+    record = single_lookup(normalized)
+    member = build_member_view(record, normalized) if record is not None else None
+    return render(
+        request, "search.html", user,
+        query=raw, normalized=normalized, hint=hint,
+        member=member, not_found=record is None,
+    )
+
+
 @app.get("/search", response_class=HTMLResponse)
 def search_form(request: Request):
     user = current_user(request)
     if not user:
         return redirect_login()
+    # Support deep links like /search?nia=GHA... (e.g. "Open full record").
+    q = request.query_params.get("nia")
+    if q:
+        return _search_result(request, user, q)
     return render(request, "search.html", user)
 
 
@@ -152,36 +180,7 @@ def search_submit(request: Request, nia: str = Form("")):
     user = current_user(request)
     if not user:
         return redirect_login()
-
-    raw = (nia or "").strip()
-    normalized = normalize_nia(raw)
-    hint = None
-    result = None
-    not_found = False
-
-    if not normalized:
-        hint = "Please enter a Ghana Card / NIA number."
-        return render(request, "search.html", user, query=raw, hint=hint)
-
-    if not is_valid_nia(normalized):
-        hint = format_hint()
-        # We still allow the search to run, but warn about the format.
-
-    # Log the query (normalized value only — never the result).
-    audit.log_single_query(user["username"], normalized)
-
-    record = single_lookup(normalized)
-    member = None
-    if record is None:
-        not_found = True
-    else:
-        member = build_member_view(record, normalized)
-
-    return render(
-        request, "search.html", user,
-        query=raw, normalized=normalized, hint=hint,
-        member=member, not_found=not_found,
-    )
+    return _search_result(request, user, nia)
 
 
 @app.get("/search/export/{nia}")
@@ -233,66 +232,8 @@ async def _save_upload(upload: UploadFile, max_bytes: int, allowed_exts) -> Path
     return dest
 
 
-@app.get("/bulk", response_class=HTMLResponse)
-def bulk_form(request: Request):
-    user = current_user(request)
-    if not user:
-        return redirect_login()
-    return render(request, "bulk.html", user)
-
-
-@app.post("/bulk/preview", response_class=HTMLResponse)
-async def bulk_preview(request: Request, listfile: UploadFile):
-    user = current_user(request)
-    if not user:
-        return redirect_login()
-    try:
-        dest = await _save_upload(listfile, settings.max_bulk_bytes, bulk.ALLOWED_EXTS)
-    except ValueError as exc:
-        return render(request, "bulk.html", user, err=str(exc))
-
-    ext = dest.suffix.lower()
-    token = dest.stem
-    try:
-        columns, sample = await run_in_threadpool(bulk.preview, str(dest), ext)
-    except Exception as exc:  # noqa: BLE001 - surface parse errors to the user
-        dest.unlink(missing_ok=True)
-        return render(request, "bulk.html", user, err=f"Could not read the file: {exc}")
-
-    bulk.save_upload_meta(token, listfile.filename or "upload", ext, dest)
-    return render(request, "bulk.html", user,
-                  token=token, columns=columns, sample=sample,
-                  original_name=listfile.filename)
-
-
-@app.post("/bulk/run", response_class=HTMLResponse)
-async def bulk_run(request: Request, token: str = Form(...), column: str = Form(...)):
-    user = current_user(request)
-    if not user:
-        return redirect_login()
-
-    meta = bulk.load_upload_meta(token)
-    if not meta:
-        return render(request, "bulk.html", user,
-                      err="Upload session expired. Please upload the file again.")
-
-    try:
-        raw_values = await run_in_threadpool(
-            bulk.read_column_values, meta["path"], meta["ext"], column
-        )
-    except Exception as exc:  # noqa: BLE001
-        return render(request, "bulk.html", user, err=f"Could not read column: {exc}")
-
-    # Drop blank entries.
-    inputs = [v for v in raw_values if v and v.strip()]
-    normalized = [normalize_nia(v) for v in inputs]
-
-    records = bulk_lookup(normalized)
-
-    # Log the bulk query (normalized values only).
-    audit.log_bulk_query(user["username"], normalized)
-
-    # Determine member field columns (union across found records, salary excluded).
+def _build_bulk_exports(token: str, inputs, normalized, records) -> None:
+    """Write full-detail CSV/XLSX exports (all fields, salary excluded)."""
     key_union: List[str] = []
     seen = set()
     for rec in records:
@@ -302,37 +243,76 @@ async def bulk_run(request: Request, token: str = Form(...), column: str = Form(
                     seen.add(k)
                     key_union.append(k)
     member_headers = export_headers(key_union)
-
     headers = ["INPUT NIA", "NORMALIZED NIA", "STATUS"] + member_headers
     rows: List[dict] = []
-    found_count = 0
     for raw, norm, rec in zip(inputs, normalized, records):
-        row = {"INPUT NIA": raw, "NORMALIZED NIA": norm}
-        if rec:
-            found_count += 1
-            row["STATUS"] = "FOUND"
-            for h in member_headers:
-                row[h] = rec.get(h, "")
-        else:
-            row["STATUS"] = "NOT FOUND"
-            for h in member_headers:
-                row[h] = ""
+        row = {"INPUT NIA": raw, "NORMALIZED NIA": norm,
+               "STATUS": "FOUND" if rec else "NOT FOUND"}
+        for h in member_headers:
+            row[h] = rec.get(h, "") if rec else ""
         rows.append(row)
+    bulk.build_exports(token, headers, rows)
 
-    # Build downloadable exports (all rows).
-    await run_in_threadpool(bulk.build_exports, token, headers, rows)
 
-    # Cap the on-screen table for very large lists; export always has everything.
-    display_cap = 1000
-    display_rows = rows[:display_cap]
-    truncated = len(rows) > display_cap
+@app.get("/bulk", response_class=HTMLResponse)
+def bulk_form(request: Request):
+    user = current_user(request)
+    if not user:
+        return redirect_login()
+    return render(request, "bulk.html", user, has_results=False)
 
-    return render(
-        request, "bulk_results.html", user,
-        token=token, headers=headers, rows=display_rows,
-        total=len(rows), found=found_count, not_found=len(rows) - found_count,
-        truncated=truncated, display_cap=display_cap,
-    )
+
+@app.post("/bulk/run", response_class=HTMLResponse)
+async def bulk_run(request: Request, numbers: str = Form(""),
+                   listfile: Optional[UploadFile] = File(None)):
+    user = current_user(request)
+    if not user:
+        return redirect_login()
+
+    numbers_raw = numbers or ""
+    inputs: List[str] = []
+
+    if listfile is not None and (listfile.filename or "").strip():
+        # A file was provided — parse the NIA column from it.
+        try:
+            dest = await _save_upload(listfile, settings.max_bulk_bytes, bulk.ALLOWED_EXTS)
+        except ValueError as exc:
+            return render(request, "bulk.html", user, has_results=False,
+                          numbers_raw=numbers_raw, err=str(exc))
+        try:
+            inputs = await run_in_threadpool(
+                bulk.extract_nia_from_file, str(dest), dest.suffix.lower())
+        except Exception as exc:  # noqa: BLE001
+            return render(request, "bulk.html", user, has_results=False,
+                          numbers_raw=numbers_raw, err=f"Could not read the file: {exc}")
+        finally:
+            dest.unlink(missing_ok=True)
+        numbers_raw = ""  # results came from a file, keep the paste box clear
+    else:
+        inputs = [v for v in re.split(r"[\s,;]+", numbers_raw.strip()) if v.strip()]
+
+    if not inputs:
+        return render(request, "bulk.html", user, has_results=False, numbers_raw=numbers_raw,
+                      err="Paste some Ghana Card numbers or upload a file first.")
+
+    normalized = [normalize_nia(v) for v in inputs]
+    records = bulk_lookup(normalized)
+    audit.log_bulk_query(user["username"], normalized)
+
+    client_rows = [bulk_row(i, n, r) for i, n, r in zip(inputs, normalized, records)]
+    found = sum(1 for r in records if r)
+    total = len(inputs)
+
+    token = secrets.token_hex(16)
+    await run_in_threadpool(_build_bulk_exports, token, inputs, normalized, records)
+
+    # Embed as JSON for the client renderer; neutralize any "</script>".
+    data_json = json.dumps(client_rows, ensure_ascii=False).replace("<", "\\u003c")
+
+    return render(request, "bulk.html", user,
+                  has_results=True, numbers_raw=numbers_raw,
+                  total=total, found=found, not_found=total - found,
+                  token=token, data_json=data_json)
 
 
 @app.get("/bulk/download/{token}/{fmt}")

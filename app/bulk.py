@@ -56,6 +56,31 @@ def preview(path: str, ext: str, n: int = 8) -> Tuple[List[str], List[List[str]]
     return columns, rows
 
 
+def extract_nia_from_file(path: str, ext: str) -> List[str]:
+    """Read the NIA column from an uploaded list, auto-detecting which column.
+
+    Prefers a column whose header mentions NIA / Ghana / card; otherwise uses
+    the first column. Returns the trimmed, non-empty values in order.
+    """
+    if ext == ".csv":
+        df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    else:
+        df = pd.read_excel(path, dtype=str, engine="openpyxl")
+    df = df.fillna("").astype(str)
+    cols = [str(c) for c in df.columns]
+    if not cols:
+        return []
+    chosen = None
+    for c in cols:
+        k = c.strip().upper()
+        if "NIA" in k or "GHANA" in k or "CARD" in k:
+            chosen = c
+            break
+    if chosen is None:
+        chosen = cols[0]
+    return [str(v).strip() for v in df[chosen].tolist() if str(v).strip()]
+
+
 def read_column_values(path: str, ext: str, column: str) -> List[str]:
     """Read every value from the chosen column as strings."""
     if ext == ".csv":
