@@ -71,7 +71,7 @@
     </div>
     <textarea id="copy-src" class="offscreen" readonly aria-hidden="true">{{ member.copy_text }}</textarea>
   </section>
-  <script src="/static/member-copy.js"></script>
+  <script src="{{ asset('member-copy.js') }}"></script>
   {% endif %}
 {% endif %}
 {% endblock %}

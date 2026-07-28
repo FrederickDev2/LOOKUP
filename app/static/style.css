@@ -57,6 +57,7 @@ body {
 .card {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;
+  box-shadow: 0 1px 2px rgba(20, 28, 46, 0.04), 0 1px 3px rgba(20, 28, 46, 0.05);
 }
 .card-narrow { max-width: 460px; }
 h1 { font-size: 1.4rem; margin: 0 0 0.5rem; }
@@ -256,9 +257,10 @@ form.inline { display: inline-flex; gap: 0.35rem; align-items: center; margin: 0
   padding: 12px 16px; border-bottom: 1px solid #eceff5;
 }
 .bulk-table td { padding: 13px 16px; border-bottom: 1px solid #f1f3f8; white-space: nowrap; }
-.bulk-row { cursor: pointer; }
+.bulk-row { cursor: pointer; transition: background 0.1s ease; }
 .bulk-row:hover { background: #f7f9fc; }
-.bulk-row.selected { background: #eef2fb; }
+.bulk-row.selected { background: #eef2fb; box-shadow: inset 3px 0 0 var(--brand); }
+.bulk-row.selected .c-nia, .bulk-row.selected .m-name { color: var(--brand); }
 .c-nia { color: #141c2e; }
 .m-name { font-weight: 600; color: #141c2e; }
 .m-miss { color: #a1281c; font-weight: 500; }

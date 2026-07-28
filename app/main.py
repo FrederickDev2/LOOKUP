@@ -36,6 +36,18 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 # Thousands-separator filter for record counts, e.g. 1234 -> "1,234".
 templates.env.filters["comma"] = lambda n: f"{int(n or 0):,}"
 
+
+def _asset(path: str) -> str:
+    """Static URL with a mtime cache-buster so updated CSS/JS always reload."""
+    try:
+        version = int((BASE_DIR / "static" / path).stat().st_mtime)
+    except OSError:
+        version = 0
+    return f"/static/{path}?v={version}"
+
+
+templates.env.globals["asset"] = _asset
+
 app = FastAPI(title="UPT NIA Lookup", version=__version__, docs_url=None, redoc_url=None)
 
 app.add_middleware(

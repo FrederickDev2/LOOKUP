@@ -80,5 +80,5 @@
 {% if has_results %}
 <script type="application/json" id="bulk-data">{{ data_json | safe }}</script>
 {% endif %}
-<script src="/static/bulk.js"></script>
+<script src="{{ asset('bulk.js') }}"></script>
 {% endblock %}
