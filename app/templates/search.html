@@ -2,56 +2,68 @@
 {% block title %}Single lookup · UPT NIA Lookup{% endblock %}
 {% block nav_search %}active{% endblock %}
 {% block body %}
-<div class="card">
-  <h1>Single member lookup</h1>
-  <p class="muted">Enter a Ghana Card / NIA number, with or without hyphens or spaces.</p>
-  <form method="post" action="/search" class="inline-form" autocomplete="off">
-    <input name="nia" type="text" value="{{ query or '' }}"
-           placeholder="e.g. GHA-012345678-9"
-           spellcheck="false" autofocus>
-    <button type="submit" class="btn btn-primary">Look up</button>
+<section class="card lookup-search">
+  <form method="post" action="/search" autocomplete="off">
+    <div class="field-row">
+      <div class="field">
+        <label for="nia" class="lookup-label">Ghana Card / NIA number</label>
+        <input id="nia" name="nia" type="text" class="nia-input"
+               value="{{ query or '' }}"
+               placeholder="GHA-012345678-9" spellcheck="false" autofocus>
+      </div>
+      <button type="submit" class="lookup-btn">Look up</button>
+    </div>
+    <p class="lookup-hint">
+      Hyphens and spaces optional — <span class="mono-inline">GHA0123456789</span> works too.
+    </p>
+    {% if hint %}<p class="lookup-warn">⚠ {{ hint }}</p>{% endif %}
   </form>
-
-  {% if hint %}<div class="hint">⚠ {{ hint }}</div>{% endif %}
-</div>
+</section>
 
 {% if normalized %}
   {% if not_found %}
-  <div class="card">
-    <div class="notfound">
-      <strong>Not found.</strong> No member record matches
-      <code>{{ normalized }}</code>.
+  <section class="card member-card">
+    <div class="member-notfound">
+      <p class="nf-title">No member found</p>
+      <p class="nf-sub">No record matches <span class="mono-inline">{{ normalized }}</span>. Check the Ghana Card number and try again.</p>
     </div>
-  </div>
+  </section>
   {% elif member %}
-  <div class="card result-card">
-    <div class="member-header">
-      <div class="avatar">{{ member.initials }}</div>
-      <div class="member-id">
-        <div class="member-name">{{ member.full_name }}</div>
-        <div class="member-sub">
-          <span class="pill pill-accent">NIA {{ member.nia_display }}</span>
-          {% if member.gender %}<span class="pill">{{ member.gender }}</span>{% endif %}
-          {% if member.employer %}<span class="employer">{{ member.employer }}</span>{% endif %}
+  <section class="card member-card">
+    <div class="member-banner">
+      <div class="member-avatar">{{ member.initials }}</div>
+      <div class="member-ident">
+        <h1 class="member-title">{{ member.name }}</h1>
+        <div class="member-tags">
+          {% if member.nia %}<span class="tag tag-mono">{{ member.nia }}</span>{% endif %}
+          {% if member.meta %}<span class="tag">{{ member.meta }}</span>{% endif %}
+          {% if member.status %}<span class="tag tag-status">{{ member.status }}</span>{% endif %}
         </div>
       </div>
+      {% if member.current_employer %}
+      <div class="member-employer">
+        <span class="cap">Current employer</span>
+        <span class="val">{{ member.current_employer }}</span>
+      </div>
+      {% endif %}
     </div>
 
-    {% if member.fields %}
-    <dl class="detail-grid">
-      {% for label, value in member.fields %}
-      <div class="detail-item">
-        <dt>{{ label }}</dt>
-        <dd>{{ value }}</dd>
+    <div class="member-panels">
+      {% for panel in member.panels %}
+      <div class="member-panel">
+        <h2>{{ panel.title }}</h2>
+        <dl class="member-dl">
+          {% for r in panel.rows %}
+          <dt>{{ r.label }}</dt>
+          <dd class="{{ 'mono' if r.mono else '' }}">{{ r.value }}</dd>
+          {% endfor %}
+        </dl>
       </div>
       {% endfor %}
-    </dl>
-    {% else %}
-    <p class="muted">No additional details on file.</p>
-    {% endif %}
+    </div>
 
-    <p class="muted small">Blank fields and monthly salary are hidden.</p>
-  </div>
+    <div class="member-foot">Blank fields and monthly salary are hidden.</div>
+  </section>
   {% endif %}
 {% endif %}
 {% endblock %}

@@ -1,7 +1,7 @@
 /* UPT NIA Lookup — self-contained stylesheet (no external fonts/CDN). */
 :root {
-  --brand: #16233f;        /* UPT navy */
-  --brand-dark: #0c1729;   /* deeper navy */
+  --brand: #141c2e;        /* UPT navy (matches lookup mockup) */
+  --brand-dark: #0c1424;   /* deeper navy */
   --accent: #f58025;       /* UPT orange — Pantone 430 C */
   --bg: #f3f5f8;
   --card: #ffffff;
@@ -103,34 +103,75 @@ form.inline { display: inline-flex; gap: 0.35rem; align-items: center; margin: 0
 .pill { background: #eef2f0; color: var(--muted); padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.85rem; }
 .pill-accent { background: var(--brand); color: #fff; font-weight: 600; letter-spacing: 0.02em; }
 
-/* Member result card */
-.result-card { animation: fadein 0.18s ease-out; }
-@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.member-header {
-  display: flex; align-items: center; gap: 1rem;
-  padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line);
-}
-.avatar {
-  flex: 0 0 auto; width: 58px; height: 58px; border-radius: 50%;
-  background: var(--brand); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.35rem; font-weight: 700; letter-spacing: 0.02em;
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.15);
-}
-.member-name { font-size: 1.55rem; font-weight: 700; color: var(--brand); line-height: 1.15; }
-.member-sub { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.4rem; flex-wrap: wrap; }
-.member-sub .employer { color: var(--muted); font-size: 0.9rem; }
+/* ===== Lookup page — matches the provided mockup ===== */
+.mono-inline { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
 
-.detail-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 0.4rem 1.5rem; margin: 0;
+/* Search card */
+.lookup-search { padding: 20px 22px; animation: fadein 0.18s ease-out; }
+.lookup-search .field-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
+.lookup-search .field { flex: 1 1 380px; display: flex; flex-direction: column; gap: 7px; }
+.lookup-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #6b7590; margin: 0;
 }
-.detail-item { padding: 0.45rem 0; border-bottom: 1px solid var(--line); }
-.detail-item dt {
-  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--muted); font-weight: 600; margin-bottom: 0.1rem;
+.nia-input {
+  width: 100%; height: 42px; padding: 0 14px; border: 1px solid #cfd6e4; border-radius: 7px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 14px; letter-spacing: 0.02em; color: #141c2e; background: #fff;
 }
-.detail-item dd { margin: 0; font-size: 0.98rem; color: var(--ink); word-break: break-word; }
+.nia-input:focus { outline: none; border-color: #141c2e; box-shadow: 0 0 0 3px rgba(20,28,46,0.1); }
+.lookup-btn {
+  height: 42px; padding: 0 22px; background: #141c2e; color: #fff; border: none; border-radius: 7px;
+  font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.lookup-btn:hover { background: #243052; }
+.lookup-hint { margin: 12px 0 0; font-size: 12.5px; color: #78829b; }
+.lookup-warn { margin: 8px 0 0; font-size: 12.5px; color: #7a5a00; background: #fff7e0; padding: 6px 10px; border-radius: 6px; }
+
+/* Result card */
+.member-card { padding: 0; overflow: hidden; border-color: #e2e6ee; animation: fadein 0.18s ease-out; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.member-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 22px 24px;
+  border-bottom: 1px solid #eceff5; background: linear-gradient(#fbfcfe, #f7f9fc);
+}
+.member-avatar {
+  flex: none; width: 54px; height: 54px; border-radius: 50%; background: #141c2e; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 600; letter-spacing: 0.02em;
+}
+.member-ident { flex: 1 1 260px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.member-title { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; color: #141c2e; }
+.member-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.member-tags .tag {
+  font-size: 12px; color: #4a5570; background: #eef1f7; border: 1px solid #e0e5ef;
+  padding: 3px 8px; border-radius: 5px;
+}
+.member-tags .tag-mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+.member-tags .tag-status { font-weight: 600; color: #15613f; background: #e6f5ec; border-color: #c9e8d7; }
+.member-employer { flex: none; display: flex; flex-direction: column; gap: 3px; text-align: right; }
+.member-employer .cap {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8b95ad;
+}
+.member-employer .val { font-size: 13.5px; font-weight: 600; color: #141c2e; }
+
+.member-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.member-panel { padding: 20px 24px; border-bottom: 1px solid #eceff5; }
+.member-panel:nth-child(odd) { border-right: 1px solid #eceff5; }
+.member-panel h2 {
+  margin: 0 0 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #8b95ad;
+}
+.member-dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 9px 18px; align-items: baseline; }
+.member-dl dt { font-size: 12.5px; color: #78829b; }
+.member-dl dd { margin: 0; text-align: right; font-size: 13px; font-weight: 500; color: #141c2e; word-break: break-word; }
+.member-dl dd.mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-weight: 400; }
+.member-foot { padding: 14px 24px; background: #fafbfd; font-size: 12px; color: #8b95ad; }
+
+.member-notfound { padding: 28px 24px; text-align: center; }
+.member-notfound .nf-title { margin: 0; font-size: 14px; font-weight: 600; color: #141c2e; }
+.member-notfound .nf-sub { margin: 6px 0 0; font-size: 12.5px; color: #78829b; }
 table.kv { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
 table.kv th, table.kv td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.kv th { width: 34%; color: var(--muted); font-weight: 600; }
