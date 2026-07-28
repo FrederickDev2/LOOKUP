@@ -118,12 +118,31 @@ def build_member_view(record: Dict[str, str], normalized: str = "") -> dict:
     else:
         meta = ""
 
+    nia = _g(record, "NIA NUMBER") or normalized
+    name = full_name or "Member record"
+
+    # Plain-text block for the "Copy details" button.
+    lines = [name]
+    if nia:
+        lines.append(f"NIA: {nia}")
+    if meta:
+        lines.append(meta)
+    if current_employer:
+        lines.append(f"Current employer: {current_employer}")
+    for p in panels:
+        lines.append("")
+        lines.append(p["title"])
+        for r in p["rows"]:
+            lines.append(f"  {r['label']}: {r['value']}")
+    copy_text = "\n".join(lines)
+
     return {
-        "name": full_name or "Member record",
+        "name": name,
         "initials": initials(full_name),
-        "nia": _g(record, "NIA NUMBER") or normalized,
+        "nia": nia,
         "meta": meta,
         "status": status,
         "current_employer": current_employer,
         "panels": panels,
+        "copy_text": copy_text,
     }

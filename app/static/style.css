@@ -156,9 +156,13 @@ form.inline { display: inline-flex; gap: 0.35rem; align-items: center; margin: 0
 }
 .member-employer .val { font-size: 13.5px; font-weight: 600; color: #141c2e; }
 
-.member-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-.member-panel { padding: 20px 24px; border-bottom: 1px solid #eceff5; }
-.member-panel:nth-child(odd) { border-right: 1px solid #eceff5; }
+/* Clean internal-only gridlines: each panel draws a right + bottom line via
+   box-shadow; the container clips the outermost edges with overflow:hidden. */
+.member-panels {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  overflow: hidden;
+}
+.member-panel { padding: 20px 24px; box-shadow: 1px 0 0 #eceff5, 0 1px 0 #eceff5; }
 .member-panel h2 {
   margin: 0 0 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
   text-transform: uppercase; color: #8b95ad;
@@ -167,7 +171,21 @@ form.inline { display: inline-flex; gap: 0.35rem; align-items: center; margin: 0
 .member-dl dt { font-size: 12.5px; color: #78829b; }
 .member-dl dd { margin: 0; text-align: right; font-size: 13px; font-weight: 500; color: #141c2e; word-break: break-word; }
 .member-dl dd.mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-weight: 400; }
-.member-foot { padding: 14px 24px; background: #fafbfd; font-size: 12px; color: #8b95ad; }
+
+.member-foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 24px; background: #fafbfd; border-top: 1px solid #eceff5;
+}
+.member-foot-note { font-size: 12px; color: #8b95ad; }
+.member-foot-actions { display: flex; gap: 8px; }
+.mini-btn {
+  height: 32px; padding: 0 14px; display: inline-flex; align-items: center;
+  background: #fff; border: 1px solid #cfd6e4; border-radius: 6px;
+  font-family: inherit; font-size: 12.5px; font-weight: 500; color: #3d4761;
+  cursor: pointer; text-decoration: none;
+}
+.mini-btn:hover { border-color: #141c2e; color: #141c2e; }
+.offscreen { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }
 
 .member-notfound { padding: 28px 24px; text-align: center; }
 .member-notfound .nf-title { margin: 0; font-size: 14px; font-weight: 600; color: #141c2e; }

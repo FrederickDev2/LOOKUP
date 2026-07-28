@@ -62,8 +62,16 @@
       {% endfor %}
     </div>
 
-    <div class="member-foot">Blank fields and monthly salary are hidden.</div>
+    <div class="member-foot">
+      <span class="member-foot-note">Blank fields and monthly salary are hidden.</span>
+      <div class="member-foot-actions">
+        <button type="button" id="copy-details" class="mini-btn">Copy details</button>
+        <a class="mini-btn" href="/search/export/{{ normalized }}">Export</a>
+      </div>
+    </div>
+    <textarea id="copy-src" class="offscreen" readonly aria-hidden="true">{{ member.copy_text }}</textarea>
   </section>
+  <script src="/static/member-copy.js"></script>
   {% endif %}
 {% endif %}
 {% endblock %}

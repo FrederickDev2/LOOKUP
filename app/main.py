@@ -10,15 +10,18 @@ import secrets
 from pathlib import Path
 from typing import List, Optional
 
+import csv
+import io
+
 from fastapi import FastAPI, Form, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import __version__, audit, bulk, users
-from .columns import export_headers, is_salary
+from .columns import display_fields, export_headers, is_salary
 from .memberview import build_member_view
 from .config import settings
 from .database import init_db
@@ -178,6 +181,29 @@ def search_submit(request: Request, nia: str = Form("")):
         request, "search.html", user,
         query=raw, normalized=normalized, hint=hint,
         member=member, not_found=not_found,
+    )
+
+
+@app.get("/search/export/{nia}")
+def search_export(request: Request, nia: str):
+    user = current_user(request)
+    if not user:
+        return redirect_login()
+    normalized = normalize_nia(nia)
+    record = single_lookup(normalized)
+    if record is None:
+        return RedirectResponse("/search?err=Record+not+found+for+export.", status_code=303)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Field", "Value"])
+    for label, value in display_fields(record):  # salary already excluded
+        if (value or "").strip():
+            writer.writerow([label, value])
+    filename = f"nia_{normalized or 'record'}.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
