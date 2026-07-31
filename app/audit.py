@@ -43,6 +43,28 @@ def log_import(filename: str, row_count: int, skipped_count: int,
         conn.commit()
 
 
+def log_session_event(username: str, session_started_epoch: int, reason: str) -> None:
+    """Record a session ending — reason is 'idle', 'max_lifetime' or 'logout'."""
+    from datetime import datetime, timezone
+    started_iso = (datetime.fromtimestamp(session_started_epoch, tz=timezone.utc)
+                   .replace(microsecond=0).isoformat()) if session_started_epoch else None
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO session_logs "
+            "(username, session_started_at, expired_at, reason, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (username, started_iso, utcnow_iso(), reason, utcnow_iso()),
+        )
+        conn.commit()
+
+
+def recent_session_logs(limit: int = 200):
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM session_logs ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+
+
 def recent_query_logs(limit: int = 200):
     with get_conn() as conn:
         return conn.execute(

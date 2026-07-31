@@ -66,7 +66,10 @@ class Settings:
 
         # Session cookie
         self.cookie_secure = _bool("SESSION_COOKIE_SECURE", False)
-        self.session_max_age = _int("SESSION_MAX_AGE", 8 * 60 * 60)
+        # Idle timeout (sliding) — session expires after this long with no activity.
+        self.session_idle_timeout = _int("SESSION_IDLE_TIMEOUT_MINUTES", 30) * 60
+        # Absolute maximum lifetime regardless of activity.
+        self.session_max_lifetime = _int("SESSION_MAX_LIFETIME_HOURS", 8) * 60 * 60
 
         # Upload limits (bytes)
         self.max_import_bytes = _int("MAX_IMPORT_MB", 300) * 1024 * 1024

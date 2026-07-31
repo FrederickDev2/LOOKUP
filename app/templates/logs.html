@@ -28,6 +28,30 @@
 </div>
 
 <div class="card">
+  <h1>Session log</h1>
+  <p class="muted">Session endings — idle timeout, absolute max lifetime, or logout.</p>
+  <div class="table-scroll">
+    <table class="grid">
+      <thead>
+        <tr><th>Ended (UTC)</th><th>Account</th><th>Session started (UTC)</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        {% for s in session_logs %}
+        <tr class="{{ 'row-miss' if s['reason'] != 'logout' else '' }}">
+          <td class="small">{{ s['expired_at'] }}</td>
+          <td>{{ s['username'] }}</td>
+          <td class="small">{{ s['session_started_at'] or '—' }}</td>
+          <td>{{ 'idle timeout' if s['reason'] == 'idle' else ('max lifetime' if s['reason'] == 'max_lifetime' else 'logout') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="muted">No session events yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
   <h1>Import log</h1>
   <div class="table-scroll">
     <table class="grid">

@@ -58,6 +58,26 @@ CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT
 );
+
+-- Server-side session store (so expiry can't be bypassed by editing the cookie).
+CREATE TABLE IF NOT EXISTS sessions (
+    id             TEXT PRIMARY KEY,     -- random session id (stored in the cookie)
+    username       TEXT NOT NULL,
+    user_id        INTEGER,
+    created_at     INTEGER NOT NULL,     -- epoch seconds (absolute-lifetime anchor)
+    last_active_at INTEGER NOT NULL      -- epoch seconds (sliding idle anchor)
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions (created_at);
+
+-- Session lifecycle audit (expiry / logout), admin-visible.
+CREATE TABLE IF NOT EXISTS session_logs (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    username           TEXT,
+    session_started_at TEXT,             -- ISO
+    expired_at         TEXT NOT NULL,    -- ISO
+    reason             TEXT NOT NULL,    -- 'idle' | 'max_lifetime' | 'logout'
+    created_at         TEXT NOT NULL
+);
 """
 
 

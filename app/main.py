@@ -14,6 +14,7 @@ import csv
 import io
 import json
 import re
+from urllib.parse import quote_plus
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
@@ -22,7 +23,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import __version__, audit, bulk, users
+from . import __version__, audit, bulk, sessions, users
 from .columns import display_fields, export_headers, is_salary
 from .memberview import build_member_view, bulk_row
 from .config import settings
@@ -54,7 +55,9 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=settings.secret_key,
     session_cookie="upt_session",
-    max_age=settings.session_max_age,
+    # Cookie signature lasts at most the absolute session lifetime; real expiry
+    # (idle + absolute) is enforced server-side via the sessions table.
+    max_age=settings.session_max_lifetime,
     same_site="strict",
     https_only=settings.cookie_secure,
 )
@@ -91,18 +94,44 @@ async def security_headers(request: Request, call_next):
 
 # --- Auth helpers -----------------------------------------------------------
 
+SESSION_EXPIRED_MSG = "Your session has expired, please log in again."
+
+
 def current_user(request: Request):
-    uid = request.session.get("uid")
-    if not uid:
-        return None
-    user = users.get_by_id(uid)
-    if not user or not user["is_active"]:
+    """Return the logged-in user (a users row) or None.
+
+    Validates the server-side session: enforces idle + absolute-lifetime expiry
+    and slides the idle timer. On expiry, records a session-log entry and flags
+    the request so redirect_login() can show the "session expired" message.
+    """
+    sid = request.session.get("sid")
+    result = sessions.validate(sid)
+
+    if result["status"] == "ok":
+        user = (users.get_by_id(result["user_id"]) if result["user_id"]
+                else users.get_by_username(result["username"]))
+        if not user or not user["is_active"]:
+            sessions.end_session(sid)
+            request.session.clear()
+            return None
+        return user
+
+    if result["status"] == "expired":
+        audit.log_session_event(result["username"], result["created_at"], result["reason"])
         request.session.clear()
+        request.state.session_expired = True
         return None
-    return user
+
+    # missing / no session
+    if sid:
+        request.session.clear()
+    return None
 
 
-def redirect_login() -> RedirectResponse:
+def redirect_login(request: Request) -> RedirectResponse:
+    if getattr(request.state, "session_expired", False):
+        return RedirectResponse("/login?err=" + quote_plus(SESSION_EXPIRED_MSG),
+                                status_code=303)
     return RedirectResponse("/login", status_code=303)
 
 
@@ -138,16 +167,20 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
     if not user:
         return render(request, "login.html", None,
                       err="Invalid username or password, or the account is disabled.")
+    # Start a fresh server-side session; the cookie only carries the opaque id.
     request.session.clear()
-    request.session["uid"] = user["id"]
-    request.session["username"] = user["username"]
-    request.session["role"] = user["role"]
+    request.session["sid"] = sessions.create_session(user["id"], user["username"])
     return RedirectResponse("/search", status_code=303)
 
 
 @app.get("/logout")
 def logout(request: Request):
+    sid = request.session.get("sid")
+    info = sessions.get(sid)
+    sessions.end_session(sid)
     request.session.clear()
+    if info:
+        audit.log_session_event(info["username"], info["created_at"], "logout")
     return RedirectResponse("/login?msg=You+have+been+logged+out.", status_code=303)
 
 
@@ -179,7 +212,7 @@ def _search_result(request: Request, user, raw: str):
 def search_form(request: Request):
     user = current_user(request)
     if not user:
-        return redirect_login()
+        return redirect_login(request)
     # Support deep links like /search?nia=GHA... (e.g. "Open full record").
     q = request.query_params.get("nia")
     if q:
@@ -191,7 +224,7 @@ def search_form(request: Request):
 def search_submit(request: Request, nia: str = Form("")):
     user = current_user(request)
     if not user:
-        return redirect_login()
+        return redirect_login(request)
     return _search_result(request, user, nia)
 
 
@@ -199,7 +232,7 @@ def search_submit(request: Request, nia: str = Form("")):
 def search_export(request: Request, nia: str):
     user = current_user(request)
     if not user:
-        return redirect_login()
+        return redirect_login(request)
     normalized = normalize_nia(nia)
     record = single_lookup(normalized)
     if record is None:
@@ -270,7 +303,7 @@ def _build_bulk_exports(token: str, inputs, normalized, records) -> None:
 def bulk_form(request: Request):
     user = current_user(request)
     if not user:
-        return redirect_login()
+        return redirect_login(request)
     return render(request, "bulk.html", user, has_results=False)
 
 
@@ -279,7 +312,7 @@ async def bulk_run(request: Request, numbers: str = Form(""),
                    listfile: Optional[UploadFile] = File(None)):
     user = current_user(request)
     if not user:
-        return redirect_login()
+        return redirect_login(request)
 
     numbers_raw = numbers or ""
     inputs: List[str] = []
@@ -331,7 +364,7 @@ async def bulk_run(request: Request, numbers: str = Form(""),
 def bulk_download(request: Request, token: str, fmt: str):
     user = current_user(request)
     if not user:
-        return redirect_login()
+        return redirect_login(request)
     # token is a hex string; reject anything else to avoid path games.
     if not token or not all(c in "0123456789abcdef" for c in token):
         return RedirectResponse("/bulk?err=Invalid+download+token.", status_code=303)
@@ -348,7 +381,7 @@ def bulk_download(request: Request, token: str, fmt: str):
 def require_admin(request: Request):
     user = current_user(request)
     if not user:
-        return None, redirect_login()
+        return None, redirect_login(request)
     if user["role"] != "admin":
         return None, RedirectResponse("/search?err=Admin+access+required.", status_code=303)
     return user, None
@@ -480,7 +513,8 @@ def admin_logs(request: Request):
         return redir
     return render(request, "logs.html", user,
                   query_logs=audit.recent_query_logs(300),
-                  import_logs=audit.recent_import_logs(100))
+                  import_logs=audit.recent_import_logs(100),
+                  session_logs=audit.recent_session_logs(200))
 
 
 @app.get("/healthz")
