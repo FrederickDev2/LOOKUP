@@ -249,6 +249,16 @@ form.inline { display: inline-flex; gap: 0.35rem; align-items: center; margin: 0
 .seg-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 600; color: #4a5570; cursor: pointer; }
 .seg-btn.active { background: #141c2e; color: #fff; }
 
+/* Selection bar + row checkboxes */
+.bulk-selbar { display: flex; align-items: center; gap: 8px; padding: 0 20px 12px; flex-wrap: wrap; }
+.bulk-selbar .sel-count { font-size: 13px; font-weight: 700; color: #141c2e; }
+.bulk-selbar .spacer { flex: 1; }
+.col-check { width: 44px; }
+.bulk-table th.col-check, .bulk-table td.cell-check { text-align: center; padding-left: 14px; padding-right: 8px; }
+.bulk-table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #141c2e; vertical-align: middle; }
+.bulk-row.row-chosen { background: #eef5ff; }
+.bulk-row.row-chosen.selected { background: #e3ecfb; }
+
 .bulk-table-wrap { flex: 1; overflow: auto; border-top: 1px solid #eceff5; }
 .bulk-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .bulk-table thead th {

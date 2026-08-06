@@ -7,6 +7,7 @@ and to the generated export files, all kept under the configured temp dir.
 """
 from __future__ import annotations
 
+import io
 import json
 import secrets
 from pathlib import Path
@@ -98,6 +99,16 @@ def build_exports(token: str, headers: List[str], result_rows: List[Dict[str, st
     df = pd.DataFrame(result_rows, columns=headers)
     df.to_csv(settings.tmp_dir / f"{token}_results.csv", index=False)
     df.to_excel(settings.tmp_dir / f"{token}_results.xlsx", index=False, engine="openpyxl")
+
+
+def export_bytes(headers: List[str], result_rows: List[Dict[str, str]], fmt: str) -> bytes:
+    """Build a CSV or XLSX file in memory (for streaming a selected subset)."""
+    df = pd.DataFrame(result_rows, columns=headers)
+    if fmt == "csv":
+        return df.to_csv(index=False).encode("utf-8")
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, engine="openpyxl")
+    return buf.getvalue()
 
 
 def export_path(token: str, fmt: str) -> Optional[Path]:

@@ -277,8 +277,8 @@ async def _save_upload(upload: UploadFile, max_bytes: int, allowed_exts) -> Path
     return dest
 
 
-def _build_bulk_exports(token: str, inputs, normalized, records) -> None:
-    """Write full-detail CSV/XLSX exports (all fields, salary excluded)."""
+def _bulk_export_table(inputs, normalized, records):
+    """Build (headers, rows) for a bulk export — full fields, salary excluded."""
     key_union: List[str] = []
     seen = set()
     for rec in records:
@@ -296,7 +296,49 @@ def _build_bulk_exports(token: str, inputs, normalized, records) -> None:
         for h in member_headers:
             row[h] = rec.get(h, "") if rec else ""
         rows.append(row)
+    return headers, rows
+
+
+def _build_bulk_exports(token: str, inputs, normalized, records) -> None:
+    """Write full-detail CSV/XLSX exports (all fields, salary excluded)."""
+    headers, rows = _bulk_export_table(inputs, normalized, records)
     bulk.build_exports(token, headers, rows)
+
+
+@app.post("/bulk/export-selected")
+def bulk_export_selected(request: Request, fmt: str = Form("csv"), items: str = Form("")):
+    """Stream a CSV/XLSX of only the rows the user ticked in the results table.
+
+    `items` is a JSON list of {"input": "<raw NIA>"} objects posted by the client.
+    """
+    user = current_user(request)
+    if not user:
+        return redirect_login(request)
+    fmt = (fmt or "csv").lower()
+    if fmt not in ("csv", "xlsx"):
+        return RedirectResponse("/bulk?err=Invalid+export+format.", status_code=303)
+    try:
+        parsed = json.loads(items or "[]")
+        if not isinstance(parsed, list):
+            raise ValueError
+    except (ValueError, TypeError):
+        return RedirectResponse("/bulk?err=Nothing+selected+to+download.", status_code=303)
+
+    inputs = [str(it.get("input", "")).strip()
+              for it in parsed[:200000]
+              if isinstance(it, dict) and str(it.get("input", "")).strip()]
+    if not inputs:
+        return RedirectResponse("/bulk?err=Nothing+selected+to+download.", status_code=303)
+
+    normalized = [normalize_nia(v) for v in inputs]
+    records = bulk_lookup(normalized)
+    audit.log_bulk_query(user["username"], normalized)  # exporting a subset is a query
+    headers, rows = _bulk_export_table(inputs, normalized, records)
+    data = bulk.export_bytes(headers, rows, fmt)
+    media = ("text/csv" if fmt == "csv"
+             else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return Response(content=data, media_type=media,
+                    headers={"Content-Disposition": f'attachment; filename="nia_bulk_selected.{fmt}"'})
 
 
 @app.get("/bulk", response_class=HTMLResponse)

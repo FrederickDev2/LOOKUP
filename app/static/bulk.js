@@ -51,11 +51,15 @@
   var tabs = document.getElementById("bulk-tabs");
   var emptyMsg = document.getElementById("bulk-empty-filter");
   var detail = document.getElementById("bulk-detail");
+  var selAll = document.getElementById("sel-all");
+  var selbar = document.getElementById("selbar");
+  var selCount = document.getElementById("sel-count");
   if (!tbody || !detail) return;
 
   var statusFilter = "all";
   var query = "";
-  var selectedNorm = null;
+  var selectedNorm = null;              // highlighted row (detail panel)
+  var chosen = Object.create(null);     // export selection, keyed by row index
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -74,14 +78,48 @@
     return true;
   }
 
+  function countChosen() {
+    var n = 0;
+    for (var k in chosen) if (chosen[k]) n++;
+    return n;
+  }
+
+  function updateSelBar() {
+    if (!selbar) return;
+    var n = countChosen();
+    selbar.hidden = n === 0;
+    if (selCount) selCount.textContent = n + " selected";
+  }
+
   function renderTable() {
     tbody.textContent = "";
     var shown = 0;
-    rows.forEach(function (r) {
+    var visible = [];
+    rows.forEach(function (r, idx) {
       if (!matches(r)) return;
       shown++;
+      visible.push(idx);
+
       var tr = el("tr", "bulk-row" + (r.found ? "" : " bulk-row-miss") +
         (r.norm === selectedNorm ? " selected" : ""));
+
+      // checkbox cell
+      var ctd = el("td", "cell-check");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!chosen[idx];
+      cb.setAttribute("aria-label", "Select " + (r.nia || r.input));
+      cb.addEventListener("click", function (e) { e.stopPropagation(); });
+      cb.addEventListener("change", function () {
+        chosen[idx] = cb.checked;
+        tr.classList.toggle("row-chosen", cb.checked);
+        updateSelBar();
+        syncSelAll(visible);
+      });
+      ctd.appendChild(cb);
+      tr.appendChild(ctd);
+      if (chosen[idx]) tr.classList.add("row-chosen");
+
       tr.appendChild(el("td", "c-nia mono", r.nia));
       var m = el("td", "c-member");
       m.appendChild(el("span", r.found ? "m-name" : "m-miss", r.found ? r.name : "Not found"));
@@ -92,6 +130,22 @@
       tbody.appendChild(tr);
     });
     if (emptyMsg) emptyMsg.hidden = shown !== 0;
+    syncSelAll(visible);
+    updateSelBar();
+  }
+
+  function syncSelAll(visible) {
+    if (!selAll) return;
+    var sel = 0;
+    for (var i = 0; i < visible.length; i++) if (chosen[visible[i]]) sel++;
+    selAll.checked = visible.length > 0 && sel === visible.length;
+    selAll.indeterminate = sel > 0 && sel < visible.length;
+  }
+
+  function visibleIndices() {
+    var out = [];
+    rows.forEach(function (r, idx) { if (matches(r)) out.push(idx); });
+    return out;
   }
 
   function findRow(norm) {
@@ -168,7 +222,45 @@
     });
   }
 
-  // Auto-select the first found row (or the first row).
+  // Select-all toggles every currently-visible (filtered) row.
+  if (selAll) {
+    selAll.addEventListener("change", function () {
+      var vis = visibleIndices();
+      vis.forEach(function (idx) { chosen[idx] = selAll.checked; });
+      renderTable();
+    });
+  }
+
+  // Clear selection.
+  var clearBtn = document.getElementById("sel-clear");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", function () {
+      chosen = Object.create(null);
+      renderTable();
+    });
+  }
+
+  // Download the selected rows (server rebuilds full-detail CSV/XLSX).
+  var selForm = document.getElementById("sel-form");
+  var selFmt = document.getElementById("sel-fmt");
+  var selItems = document.getElementById("sel-items");
+  function downloadSelected(fmt) {
+    if (!selForm || !selFmt || !selItems) return;
+    var items = [];
+    for (var k in chosen) {
+      if (chosen[k]) { var r = rows[k]; if (r) items.push({ input: r.input }); }
+    }
+    if (!items.length) return;
+    selFmt.value = fmt;
+    selItems.value = JSON.stringify(items);
+    selForm.submit();
+  }
+  var csvBtn = document.getElementById("dl-sel-csv");
+  var xlsxBtn = document.getElementById("dl-sel-xlsx");
+  if (csvBtn) csvBtn.addEventListener("click", function () { downloadSelected("csv"); });
+  if (xlsxBtn) xlsxBtn.addEventListener("click", function () { downloadSelected("xlsx"); });
+
+  // Auto-select the first found row (or the first row) for the detail preview.
   var first = null;
   for (var i = 0; i < rows.length; i++) { if (rows[i].found) { first = rows[i]; break; } }
   if (!first && rows.length) first = rows[0];

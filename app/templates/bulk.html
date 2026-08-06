@@ -49,10 +49,19 @@
       </div>
     </div>
 
+    <div class="bulk-selbar" id="selbar" hidden>
+      <span class="sel-count" id="sel-count">0 selected</span>
+      <span class="spacer"></span>
+      <button type="button" class="mini-btn" id="dl-sel-csv" data-fmt="csv">Download selected CSV</button>
+      <button type="button" class="mini-btn" id="dl-sel-xlsx" data-fmt="xlsx">Download selected Excel</button>
+      <button type="button" class="mini-btn" id="sel-clear">Clear</button>
+    </div>
+
     <div class="bulk-table-wrap">
       <table class="bulk-table" id="bulk-table">
         <thead>
           <tr>
+            <th class="col-check"><input type="checkbox" id="sel-all" aria-label="Select all visible rows"></th>
             <th>NIA Number</th><th>Member</th><th>SSNIT no.</th><th>Employer</th>
           </tr>
         </thead>
@@ -60,6 +69,11 @@
       </table>
       <div class="bulk-empty" id="bulk-empty-filter" hidden>No rows match your filter.</div>
     </div>
+
+    <form id="sel-form" method="post" action="/bulk/export-selected" hidden>
+      <input type="hidden" name="fmt" id="sel-fmt">
+      <input type="hidden" name="items" id="sel-items">
+    </form>
     {% else %}
     <div class="bulk-empty-main">
       <div class="bem-title">No results yet</div>
