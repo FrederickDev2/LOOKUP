@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head>
 <body>
+  {% block chrome_top %}
   <header class="topbar">
     <div class="brand">
       <span class="logo">UPT</span>
@@ -29,16 +30,21 @@
     </div>
     {% endif %}
   </header>
+  {% endblock %}
 
   <main class="content {% block content_class %}{% endblock %}">
+    {% block flash %}
     {% if msg %}<div class="flash flash-ok">{{ msg }}</div>{% endif %}
     {% if err %}<div class="flash flash-err">{{ err }}</div>{% endif %}
+    {% endblock %}
     {% block body %}{% endblock %}
   </main>
 
+  {% block chrome_bottom %}
   <footer class="footer">
     <span>UPT Member NIA Lookup · v{{ version }} · internal use only</span>
     <span class="privacy">Handles sensitive PII — do not share this screen or exports outside authorised staff.</span>
   </footer>
+  {% endblock %}
 </body>
 </html>
